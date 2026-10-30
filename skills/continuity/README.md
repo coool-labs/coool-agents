@@ -27,9 +27,9 @@ work → work → work → quota / context / crash
 
 At that point, asking the previous agent to summarize its work is no longer possible.
 
-`continuity` solves this by maintaining a small live checkpoint during the task rather than generating a handoff only at the end.
+`continuity` addresses this by maintaining a small live checkpoint during the task rather than generating a handoff only at the end.
 
-> Handoff assumes you know you're about to stop.  
+> Handoff assumes you know you're about to stop.
 > Continuity assumes you don't.
 
 ## How it works
@@ -109,6 +109,20 @@ npx skills add coool-labs/coool-agents \
   -a github-copilot
 ```
 
+## Update
+
+Update an existing installation to the latest version:
+
+```bash
+npx skills update continuity
+```
+
+To update all installed skills:
+
+```bash
+npx skills update
+```
+
 ## Usage
 
 Activate the skill when starting substantial autonomous work that may outlive the current session.
@@ -127,9 +141,11 @@ or, in agents that expose skills as slash commands:
 
 Then continue working normally.
 
+Before substantial work begins, the skill ensures that a checkpoint for the current objective exists and reflects the reconciled working state.
+
 The skill will:
 
-1. create an initial checkpoint immediately;
+1. create or reconcile the initial checkpoint before substantial work;
 2. keep it current after meaningful milestones;
 3. record important decisions, validation, blockers, and the best next action;
 4. rewrite stale state rather than accumulating a history log.
@@ -159,9 +175,17 @@ The checkpoint is updated after meaningful events such as:
 - obtaining significant test or validation results;
 - materially changing the best next action.
 
-It is not updated after every command or small edit.
+When recovery-relevant state changes, the checkpoint is conceptually **dirty** until refreshed.
 
-This keeps the file small enough to remain useful to the next agent.
+Keeping it current is non-negotiable while continuity is active. A dirty checkpoint must be refreshed before the agent begins the next substantial step, intentionally pauses or hands off, declares the objective complete, or ends the task.
+
+`dirty` and `clean` are maintenance concepts only. They are not written into `CONTINUITY.md`.
+
+A substantial step is a semantic work boundary, not a number of commands, edits, tokens, or elapsed time.
+
+The checkpoint is not updated after every command or small edit. A clean checkpoint remains clean until recovery-relevant state changes, so it should not be repeatedly read or rewritten without reason.
+
+This keeps both the checkpoint and its context overhead small.
 
 ## Principles
 
@@ -219,7 +243,7 @@ A conventional handoff is still useful when intentionally transferring work and 
 |---|---|---|
 | Created when | Before switching | Throughout work |
 | Requires advance notice | Usually | No |
-| Handles sudden quota exhaustion | Limited | Yes |
+| Handles sudden quota exhaustion | Limited | Yes — from the latest checkpoint |
 | State style | Transfer summary | Live checkpoint |
 | Persistent repository state | Optional | Yes |
 | Primary purpose | Intentional transfer | Recovery |
@@ -252,6 +276,8 @@ There are currently no:
 - background processes;
 - helper scripts;
 - external services.
+
+The checkpoint gates in `SKILL.md` are behavioral instructions to the coding agent, not mechanical enforcement by the harness.
 
 The initial design tests a simple hypothesis:
 
