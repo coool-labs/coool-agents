@@ -2,122 +2,70 @@
 
 **Live cross-agent continuity for long-running coding tasks.**
 
-`continuity` maintains a tiny repository-local checkpoint while an agent works, so another session or coding agent can recover after an unexpected interruption.
+`continuity` maintains a small repository-local checkpoint while an agent works, so another session or coding agent can recover after quota limits, context loss, crashes, or agent switches.
 
-It is designed for workflows that move between agents such as:
-
-- Codex
-- Claude Code
-- GitHub Copilot
-- other Agent Skills-compatible coding tools
+It is designed to work across Agent Skills-compatible coding tools such as Codex, Claude Code, OpenCode, and GitHub Copilot.
 
 ## Why?
 
-Traditional handoff workflows assume you know when a session is about to end:
+Normal handoffs assume you know when a session is about to end:
 
 ```text
 work → prepare handoff → switch agent
 ```
 
-Long autonomous coding sessions often end differently:
+Autonomous sessions often end unexpectedly:
 
 ```text
 work → work → work → quota / context / crash
 ```
 
-At that point, asking the previous agent to summarize its work is no longer possible.
-
-`continuity` addresses this by maintaining a small live checkpoint during the task rather than generating a handoff only at the end.
-
-> Handoff assumes you know you're about to stop.
-> Continuity assumes you don't.
-
-## How it works
-
-When activated, the skill creates and maintains:
+Continuity keeps a live recovery checkpoint during the work instead:
 
 ```text
 .agent/CONTINUITY.md
 ```
 
-The file records only the state another agent needs to resume effectively.
+The checkpoint contains only what another capable agent needs to resume effectively:
 
-For example:
+- objective;
+- current implementation state;
+- important decisions;
+- observed validation;
+- blockers;
+- best next action;
+- references to durable project artifacts.
 
-```markdown
-# Continuity
-
-Status: active
-
-## Objective
-
-Implement offline synchronization while preserving existing API behavior.
-
-## Current
-
-Sync engine and persistence are implemented.
-Conflict resolution is incomplete.
-
-## Decisions
-
-- SQLite remains the local source of truth.
-- Server timestamps determine conflict ordering.
-
-## Validation
-
-- Unit tests: 184 passed
-- ConflictResolutionTests: 2 failing
-- UI tests: not run
-
-## Blockers
-
-None.
-
-## Next
-
-Fix timestamp tie handling in ConflictResolver and rerun SyncTests.
-
-## References
-
-- docs/offline-sync.md
-```
-
-The checkpoint is deliberately not a:
-
-- conversation log;
-- task manager;
-- implementation history;
-- chain-of-thought record.
+It is not a conversation log, task manager, history log, or chain-of-thought record.
 
 The repository remains the source of truth.
 
 ## Install
 
-Install from the `coool-labs/coool-agents` repository:
-
 ```bash
 npx skills add coool-labs/coool-agents --skill continuity
 ```
 
-You can also target supported agents explicitly:
+Or install it for specific agents:
 
 ```bash
 npx skills add coool-labs/coool-agents \
   --skill continuity \
   -a codex \
   -a claude-code \
+  -a opencode \
   -a github-copilot
 ```
 
 ## Update
 
-Update an existing installation to the latest version:
+Update continuity:
 
 ```bash
 npx skills update continuity
 ```
 
-To update all installed skills:
+Or update all installed skills:
 
 ```bash
 npx skills update
@@ -125,180 +73,79 @@ npx skills update
 
 ## Usage
 
-Activate the skill when starting substantial autonomous work that may outlive the current session.
+Continuity is opt-in. Activate it when work should survive an interrupted session or switch to another agent.
+
+If your coding agent supports native goals, the recommended workflow is:
+
+```text
+/goal Use the continuity skill while working toward this objective: <your goal>
+```
 
 For example:
 
 ```text
-$continuity
+/goal Use the continuity skill while working toward this objective: implement the authentication redesign in docs/auth-redesign.md, satisfy every acceptance criterion, preserve existing behavior, and add appropriate automated coverage.
 ```
 
-or, in agents that expose skills as slash commands:
+The native goal defines **what must be achieved**.
+
+Continuity records **where the work currently stands**.
+
+Continuity preserves enough of the goal in `.agent/CONTINUITY.md` for another session or agent to reconstruct it. Detailed requirements should remain in durable repository artifacts such as specs, plans, issues, or ADRs rather than being duplicated into the checkpoint.
+
+## Resume interrupted work
+
+Open the same working tree in another compatible agent and use:
 
 ```text
-/continuity
+/goal Use the continuity skill. Resume the active objective from .agent/CONTINUITY.md and continue until it is complete and verified, or genuinely blocked.
 ```
 
-Then continue working normally.
+The incoming agent reconciles the checkpoint with the actual repository state before continuing.
 
-Before substantial work begins, the skill ensures that a checkpoint for the current objective exists and reflects the reconciled working state.
+No conversation export or access to the previous session is required.
 
-The skill will:
+## Checkpoint behavior
 
-1. create or reconcile the initial checkpoint before substantial work;
-2. keep it current after meaningful milestones;
-3. record important decisions, validation, blockers, and the best next action;
-4. rewrite stale state rather than accumulating a history log.
+The checkpoint is updated when recovery-relevant state materially changes, such as after:
 
-## Taking over in another agent
-
-Open the same working tree and activate `continuity`.
-
-The incoming agent should reconcile the checkpoint with the actual repository state, including:
-
-```bash
-git status
-git diff
-```
-
-and any relevant code, tests, specs, issues, plans, ADRs, or other durable artifacts.
-
-No conversation export is required.
-
-## Designed for interruption
-
-The checkpoint is updated after meaningful events such as:
-
-- completing a substantial implementation step;
-- making an important non-obvious decision;
-- discovering or resolving a blocker;
-- obtaining significant test or validation results;
-- materially changing the best next action.
+- a substantial implementation milestone;
+- an important non-obvious decision;
+- discovering or resolving a significant blocker;
+- meaningful validation results;
+- a material change to the best next action.
 
 When recovery-relevant state changes, the checkpoint is conceptually **dirty** until refreshed.
 
-Keeping it current is non-negotiable while continuity is active. A dirty checkpoint must be refreshed before the agent begins the next substantial step, intentionally pauses or hands off, declares the objective complete, or ends the task.
+A dirty checkpoint must be refreshed before the agent:
 
-`dirty` and `clean` are maintenance concepts only. They are not written into `CONTINUITY.md`.
+- begins the next substantial step;
+- intentionally pauses or hands off;
+- declares the objective complete;
+- ends the task.
 
-A substantial step is a semantic work boundary, not a number of commands, edits, tokens, or elapsed time.
+Routine commands and minor edits do not require checkpoint updates.
 
-The checkpoint is not updated after every command or small edit. A clean checkpoint remains clean until recovery-relevant state changes, so it should not be repeatedly read or rewritten without reason.
-
-This keeps both the checkpoint and its context overhead small.
+A clean checkpoint remains clean until recovery-relevant state changes, avoiding unnecessary reads, writes, and token usage.
 
 ## Principles
 
-### Repository first
-
-`CONTINUITY.md` may become stale.
-
-The actual working tree, tests, code, and durable project artifacts are stronger evidence of the current state.
-
-### Reference, don't duplicate
-
-If information already exists in a spec, issue, ADR, plan, commit, or other durable artifact, continuity should reference it rather than copy it.
-
-### Current state, not history
-
-The checkpoint describes where the task is now.
-
-Old information is replaced rather than appended indefinitely.
-
-### Observed verification only
-
-Tests, builds, runtime checks, and UI verification are recorded only when they were actually performed and their result was observed.
-
-### One active objective
-
-A working tree has one active continuity-tracked objective at a time.
-
-An old or unrelated checkpoint must not silently redirect new work.
-
-## What continuity is not
-
-`continuity` is intentionally small.
-
-It does not provide:
-
-- task management;
-- session transcripts;
-- conversation export;
-- automatic commits;
-- branch management;
-- agent orchestration;
-- project planning;
-- implementation history;
-- hidden reasoning storage.
-
-Most of that information either already exists in the repository or belongs in another tool.
-
-## Handoff vs. continuity
-
-A conventional handoff is still useful when intentionally transferring work and wanting a curated summary.
-
-`continuity` addresses a different failure mode.
-
-| | Handoff | Continuity |
-|---|---|---|
-| Created when | Before switching | Throughout work |
-| Requires advance notice | Usually | No |
-| Handles sudden quota exhaustion | Limited | Yes — from the latest checkpoint |
-| State style | Transfer summary | Live checkpoint |
-| Persistent repository state | Optional | Yes |
-| Primary purpose | Intentional transfer | Recovery |
-
-They can complement each other.
-
-## Repository layout
-
-Within `coool-labs/coool-agents`:
-
-```text
-skills/
-└── continuity/
-    ├── README.md
-    └── SKILL.md
-```
-
-The skill itself is defined by `SKILL.md`.
-
-This README is human-facing documentation.
+- **Repository first.** Actual code, tests, and durable project artifacts are stronger evidence than the checkpoint.
+- **Reference, don't duplicate.** Point to existing specs, plans, ADRs, issues, and code instead of copying them.
+- **Current state, not history.** Replace stale information rather than accumulating a log.
+- **Observed validation only.** Record checks only when they were actually performed and observed.
+- **One active objective.** Do not silently overwrite an unrelated unfinished checkpoint.
+- **Low overhead.** Keep the checkpoint concise and update it only when recovery-relevant state changes.
 
 ## Status
 
-`continuity` intentionally starts as a lean, instruction-only skill.
+Current version: **1.3**
 
-There are currently no:
+Continuity is intentionally an instruction-only skill. It has no hooks, daemons, background processes, helper scripts, or external services.
 
-- hooks;
-- daemons;
-- background processes;
-- helper scripts;
-- external services.
-
-The checkpoint gates in `SKILL.md` are behavioral instructions to the coding agent, not mechanical enforcement by the harness.
-
-The initial design tests a simple hypothesis:
-
-> Once continuity is activated, capable coding agents can reliably maintain a small live checkpoint during autonomous work.
+The checkpoint gates are behavioral instructions to the coding agent rather than mechanical enforcement by the harness.
 
 More machinery should only be added if real-world usage demonstrates that it is necessary.
-
-## Contributing
-
-Issues and improvements are welcome in:
-
-`coool-labs/coool-agents`
-
-When proposing changes, preserve the core design goals:
-
-- portable across agents;
-- minimal persistent state;
-- low context overhead;
-- repository-first recovery;
-- no unnecessary infrastructure;
-- useful after unexpected interruption.
 
 ## License
 

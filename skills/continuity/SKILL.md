@@ -3,7 +3,7 @@ name: continuity
 description: Maintain or resume a small live checkpoint for coding work that must survive quota limits, context loss, crashes, or switching between coding agents. Use when the user explicitly asks for continuity, interruption-safe work, cross-agent resume, or to continue an existing .agent/CONTINUITY.md. Do not activate merely because a coding task is long.
 metadata:
   author: coool-labs
-  version: "1.2"
+  version: "1.3"
 ---
 # Continuity
 
@@ -42,6 +42,16 @@ If no checkpoint exists, create one before substantial work begins.
 If the existing checkpoint has `Status: done`, replace it when starting a new objective.
 
 If an `active` or `blocked` checkpoint clearly belongs to an unrelated unfinished objective, do not overwrite it silently. Preserve it and ask before replacing it unless the user has already explicitly instructed you to reset or replace continuity state.
+
+### Native goals
+
+When continuity is used with a native harness goal, treat that goal's completion condition as the active objective.
+
+Preserve enough of the objective and its essential constraints in `Objective` for another session or agent to recover it without access to the original native goal. Prefer references to durable repository artifacts over duplicating detailed requirements.
+
+The native goal controls continued execution and completion. Continuity controls recoverable working state.
+
+If work resumes on the same objective after its checkpoint was marked `done`, change it back to `active` before beginning further substantial work.
 
 ## Maintain
 
