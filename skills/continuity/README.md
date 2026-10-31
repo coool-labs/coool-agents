@@ -1,42 +1,26 @@
 # continuity
 
-**Live cross-agent continuity for long-running coding tasks.**
+**Live cross-agent continuity for long-running coding work.**
 
-`continuity` maintains a small repository-local checkpoint while an agent works, so another session or coding agent can recover after quota limits, context loss, crashes, or agent switches.
+`continuity` maintains a small repository-local checkpoint so work can survive quota limits, context loss, crashes, or switching between coding agents.
 
-It is designed to work across Agent Skills-compatible coding tools such as Codex, Claude Code, OpenCode, and GitHub Copilot.
+It is designed for Agent Skills-compatible tools such as Codex, Claude Code, OpenCode, and GitHub Copilot.
 
 ## Why?
 
-Normal handoffs assume you know when a session is about to end:
-
-```text
-work → prepare handoff → switch agent
-```
-
-Autonomous sessions often end unexpectedly:
+Long-running agent sessions often end without a clean handoff:
 
 ```text
 work → work → work → quota / context / crash
 ```
 
-Continuity keeps a live recovery checkpoint during the work instead:
+Continuity keeps a live checkpoint instead:
 
 ```text
 .agent/CONTINUITY.md
 ```
 
-The checkpoint contains only what another capable agent needs to resume effectively:
-
-- objective;
-- current implementation state;
-- important decisions;
-- observed validation;
-- blockers;
-- best next action;
-- references to durable project artifacts.
-
-It is not a conversation log, task manager, history log, or chain-of-thought record.
+The checkpoint contains only the state another capable agent needs to resume without repeating or rediscovering meaningful work.
 
 The repository remains the source of truth.
 
@@ -46,7 +30,7 @@ The repository remains the source of truth.
 npx skills add coool-labs/coool-agents --skill continuity
 ```
 
-Or install it for specific agents:
+For specific agents:
 
 ```bash
 npx skills add coool-labs/coool-agents \
@@ -58,8 +42,6 @@ npx skills add coool-labs/coool-agents \
 ```
 
 ## Update
-
-Update continuity:
 
 ```bash
 npx skills update continuity
@@ -73,9 +55,9 @@ npx skills update
 
 ## Usage
 
-Continuity is opt-in. Activate it when work should survive an interrupted session or switch to another agent.
+Continuity is opt-in.
 
-If your coding agent supports native goals, the recommended workflow is:
+When your coding agent supports native goals, the recommended pattern is:
 
 ```text
 /goal Use the continuity skill while working toward this objective: <your goal>
@@ -89,9 +71,7 @@ For example:
 
 The native goal defines **what must be achieved**.
 
-Continuity records **where the work currently stands**.
-
-Continuity preserves enough of the goal in `.agent/CONTINUITY.md` for another session or agent to reconstruct it. Detailed requirements should remain in durable repository artifacts such as specs, plans, issues, or ADRs rather than being duplicated into the checkpoint.
+Continuity records **where the work stands and what must not be repeated**.
 
 ## Resume interrupted work
 
@@ -105,47 +85,103 @@ The incoming agent reconciles the checkpoint with the actual repository state be
 
 No conversation export or access to the previous session is required.
 
-## Checkpoint behavior
+## What the checkpoint contains
 
-The checkpoint is updated when recovery-relevant state materially changes, such as after:
+Continuity keeps these concerns separate:
 
-- a substantial implementation milestone;
-- an important non-obvious decision;
-- discovering or resolving a significant blocker;
-- meaningful validation results;
-- a material change to the best next action.
+```text
+Objective   → what must ultimately be true
+Progress    → which objective-level outcomes are already satisfied
+Current     → where the work currently stands
+Validation  → evidence already observed
+Blockers    → what prevents progress
+Next        → the next concrete action
+```
 
-When recovery-relevant state changes, the checkpoint is conceptually **dirty** until refreshed.
+`Progress` is deliberately sparse. It exists to prevent repeated work, not to replace a task manager.
 
-A dirty checkpoint must be refreshed before the agent:
+For example:
 
-- begins the next substantial step;
-- intentionally pauses or hands off;
-- declares the objective complete;
-- ends the task.
+```markdown
+## Progress
+Source: `docs/release-checklist.md`
+Satisfied: AC-1–AC-8, AC-11
+Needs validation: AC-9
+Excluded: AC-10
+```
 
-Routine commands and minor edits do not require checkpoint updates.
+Continuity should not copy the full task list or list remaining work when that can be derived from the referenced source.
 
-A clean checkpoint remains clean until recovery-relevant state changes, avoiding unnecessary reads, writes, and token usage.
+If an existing spec, plan, issue, or task system already stores durable progress that future agents can access, Continuity references it instead of duplicating it.
+
+If there is no task system, Continuity can use stable labels from the goal itself.
+
+## Long-running work
+
+Long-running work is divided at natural recovery boundaries.
+
+When a meaningful unit of work completes:
+
+```text
+recovery-relevant result
+        ↓
+checkpoint becomes dirty
+        ↓
+update CONTINUITY.md
+        ↓
+continue with the next independent unit
+```
+
+The checkpoint update must be the next task action after a recovery-relevant result.
+
+This prevents an agent from accumulating significant completed work only in model context and then losing it when the session ends.
+
+Routine commands, minor edits, and trivial results do not require checkpoint updates.
+
+A clean checkpoint should not be repeatedly read or rewritten without reason.
+
+## Avoiding repeated work
+
+When another agent takes over, it should reconcile recorded progress with the repository and available evidence.
+
+If an outcome is already satisfied, do not repeat its implementation merely because the agent or session changed.
+
+If existing work only needs verification, Continuity records it as `Needs validation` so the next agent validates it instead of rebuilding it.
+
+Previously satisfied work can become unsatisfied or require revalidation when later changes invalidate the earlier evidence.
 
 ## Principles
 
-- **Repository first.** Actual code, tests, and durable project artifacts are stronger evidence than the checkpoint.
-- **Reference, don't duplicate.** Point to existing specs, plans, ADRs, issues, and code instead of copying them.
-- **Current state, not history.** Replace stale information rather than accumulating a log.
-- **Observed validation only.** Record checks only when they were actually performed and observed.
+- **Repository first.** Code, tests, and durable project artifacts outrank the checkpoint.
+- **Reference, don't duplicate.** Point to existing specs, plans, issues, ADRs, and tasks.
+- **Current state, not history.** Replace stale information instead of accumulating a log.
+- **Sparse progress.** Store only enough objective-level progress to prevent repeated work.
+- **Observed validation only.** Record checks only when their results were actually observed.
+- **Low overhead.** Update only when recovery-relevant state changes.
 - **One active objective.** Do not silently overwrite an unrelated unfinished checkpoint.
-- **Low overhead.** Keep the checkpoint concise and update it only when recovery-relevant state changes.
+
+## What continuity is not
+
+Continuity is not:
+
+- a task manager;
+- a project planner;
+- a session transcript;
+- an implementation history;
+- an agent orchestrator;
+- a chain-of-thought store.
+
+It deliberately stays small.
 
 ## Status
 
-Current version: **1.3**
+Current version: **1.4**
 
-Continuity is intentionally an instruction-only skill. It has no hooks, daemons, background processes, helper scripts, or external services.
+Continuity is currently an instruction-only skill. It has no hooks, daemons, background processes, helper scripts, or external services.
 
-The checkpoint gates are behavioral instructions to the coding agent rather than mechanical enforcement by the harness.
+The checkpoint rules are behavioral instructions to the coding agent rather than mechanical enforcement by the harness.
 
-More machinery should only be added if real-world usage demonstrates that it is necessary.
+More machinery should only be added if real-world usage shows that it is necessary.
 
 ## License
 
