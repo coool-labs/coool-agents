@@ -90,9 +90,11 @@ No conversation export or access to the previous session is required.
 Continuity keeps these concerns separate:
 
 ```text
-Objective   → what must ultimately be true
+Objective   → what must ultimately be true, and why
 Progress    → which objective-level outcomes are already satisfied
 Current     → where the work currently stands
+Decisions   → the chosen approach and its rationale
+Dead ends   → attempts tried and abandoned, with why they failed
 Validation  → evidence already observed
 Blockers    → what prevents progress
 Next        → the next concrete action
@@ -150,11 +152,14 @@ If existing work only needs verification, Continuity records it as `Needs valida
 
 Previously satisfied work can become unsatisfied or require revalidation when later changes invalidate the earlier evidence.
 
+Repeated work is not limited to completed steps. Failed attempts count too: if an approach was tried and abandoned, the checkpoint records it under `Dead ends` with the reason, so the next agent does not walk the same dead end with fresh enthusiasm.
+
 ## Principles
 
 - **Repository first.** Code, tests, and durable project artifacts outrank the checkpoint.
 - **Reference, don't duplicate.** Point to existing specs, plans, issues, ADRs, and tasks.
 - **Current state, not history.** Replace stale information instead of accumulating a log.
+- **Failed attempts count.** A dead end that isn't recorded will be repeated. Record what was tried and why it failed.
 - **Sparse progress.** Store only enough objective-level progress to prevent repeated work.
 - **Observed validation only.** Record checks only when their results were actually observed.
 - **Low overhead.** Update only when recovery-relevant state changes.
@@ -175,7 +180,7 @@ It deliberately stays small.
 
 ## Status
 
-Current version: **1.4**
+Current version: **1.5**
 
 Continuity is currently an instruction-only skill. It has no hooks, daemons, background processes, helper scripts, or external services.
 

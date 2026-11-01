@@ -3,7 +3,7 @@ name: continuity
 description: Maintain or resume a small live checkpoint for coding work that must survive quota limits, context loss, crashes, or switching between coding agents. Use when the user explicitly asks for continuity, interruption-safe work, cross-agent resume, or to continue an existing .agent/CONTINUITY.md. Do not activate merely because a coding task is long.
 metadata:
   author: coool-labs
-  version: "1.4"
+  version: "1.5"
 ---
 # Continuity
 
@@ -108,11 +108,14 @@ Recovery-relevant state materially changes especially after:
 - satisfying, invalidating, excluding, or changing the validation state of an objective unit;
 - a material change to the objective or its completion conditions;
 - an important non-obvious decision;
+- a meaningful failed attempt or abandoned approach;
 - discovering or resolving a significant blocker;
 - meaningful validation results;
 - a material change to the best next action.
 
 A result is recovery-relevant when losing it would cause another agent to repeat meaningful work, rerun non-trivial validation, or rediscover an important fact.
+
+This includes failed attempts: losing the knowledge that an approach was tried and abandoned causes the next agent to repeat the same dead end. Record what was tried and why it did not work, not the transcript of trying it.
 
 Treat results that are slow, manual, stateful, external, flaky, or expensive to reproduce as recovery-relevant by default.
 
@@ -182,7 +185,7 @@ Use:
 Status: active
 
 ## Objective
-<Desired outcome and essential constraints. Reference durable artifacts where possible.>
+<Desired outcome, essential constraints, and the intent behind them — why this objective matters and what the user is actually trying to achieve. Reference durable artifacts where possible.>
 
 ## Progress
 <Sparse objective-level progress needed to prevent repeated work, or "None". Use Source, Satisfied, Needs validation, and Excluded only when useful.>
@@ -191,7 +194,10 @@ Status: active
 <Current working state needed to avoid repeating or rediscovering work.>
 
 ## Decisions
-<Only non-obvious decisions that must survive the handoff, or "None".>
+<Non-obvious decisions and the chosen approach, with their rationale, or "None". A future agent must be able to tell why the current direction was picked.>
+
+## Dead ends
+<Meaningful approaches or attempts that were tried and abandoned, with why they failed, or "None". Keep only dead ends a future agent could plausibly revisit; drop stale ones.>
 
 ## Validation
 <Checks actually run and observed results that still matter, or "Not run".>
@@ -229,6 +235,8 @@ Before starting an identifiable objective unit, determine whether its outcome is
 
 If it is already satisfied and current evidence still supports that state, do not repeat its implementation merely because the agent or session changed.
 
+Before following `Next` or choosing an approach, check `Dead ends`. Do not retry a recorded dead end unless current evidence shows the conditions that made it fail have changed. If they have, say so before retrying and update the checkpoint.
+
 If it is marked `Needs validation`, validate the existing work rather than reimplementing it unless current evidence shows that the implementation itself is no longer valid.
 
 Do not rerun validation merely because a different agent took over. Revalidate when evidence is missing, stale, invalidated, or later changes could affect correctness.
@@ -251,6 +259,7 @@ Then:
 - make `Progress` reflect the final objective-level state without duplicating derivable work;
 - record final observed validation, or explicitly note when no meaningful validation applies;
 - retain any unresolved limitation under `Blockers`;
+- drop dead ends that no longer matter for the completed objective;
 - set `Next` to `None — objective complete`.
 
 Update the checkpoint to this final state before reporting completion to the user.
