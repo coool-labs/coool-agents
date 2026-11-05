@@ -142,6 +142,8 @@ Routine commands, minor edits, and trivial results do not require checkpoint upd
 
 A clean checkpoint should not be repeatedly read or rewritten without reason.
 
+Each refresh rewrites the whole checkpoint in one write rather than a series of partial edits, so an interruption cannot leave its sections inconsistent with each other. A malformed checkpoint found on resume is treated as untrusted and rebuilt from the repository state.
+
 ## Avoiding repeated work
 
 When another agent takes over, it should reconcile recorded progress with the repository and available evidence.
@@ -180,7 +182,7 @@ It deliberately stays small.
 
 ## Status
 
-Current version: **1.5**
+Current version: **1.5.1**
 
 Continuity is currently an instruction-only skill. It has no hooks, daemons, background processes, helper scripts, or external services.
 
